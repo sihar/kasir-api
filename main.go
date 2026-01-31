@@ -34,7 +34,7 @@ func main() {
 		DBConn: viper.GetString("DB_CONN"),
 	}
 
-	fmt.Println("DB Connection String:", config.DBConn)
+	// fmt.Println("DB Connection String:", config.DBConn)
 
 	db, err := database.InitDB(config.DBConn)
 	if err != nil {
