@@ -3,15 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/viper"
-	"log"
-	"net/http"
-	"os"
-	"strings"
 	"kasir-api/database"
 	"kasir-api/handlers"
 	"kasir-api/repositories"
 	"kasir-api/services"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -79,6 +80,12 @@ func main() {
 			}
 		})
 	}
+
+	transactionRepo := repositories.NewTransactionRepository(db)
+	transactionService := services.NewTransactionService(transactionRepo)
+	transactionHandler := handlers.NewTransactionHandler(transactionService)
+
+	http.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
