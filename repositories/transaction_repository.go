@@ -86,3 +86,48 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 		Details:	details,
 	}, nil
 }
+
+func (repo *TransactionRepository) GetDailyReport() (*models.DailyReport, error) {
+	now := time.Now().UTC()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+	
+	fmt.Println("startofDay:", startOfDay)
+	fmt.Println("endOfDay:", endOfDay)
+
+	var totalRevenue, totalTransaksi int
+	err := repo.db.QueryRow(`
+		SELECT COALESCE(SUM(total_amount), 0), COUNT(*) 
+		FROM transactions 
+		WHERE created_at >= $1 AND created_at < $2
+	`, startOfDay, endOfDay).Scan(&totalRevenue, &totalTransaksi)
+	if err != nil {
+		return nil, err
+	}
+
+	report := &models.DailyReport{
+		TotalRevenue:   totalRevenue,
+		TotalTransaksi: totalTransaksi,
+	}
+
+	var nama string
+	var qtyTerjual int
+	err = repo.db.QueryRow(`
+		SELECT p.name, SUM(td.quantity) as qty
+		FROM transaction_details td
+		JOIN transactions t ON td.transaction_id = t.id
+		JOIN products p ON td.product_id = p.id
+		WHERE t.created_at >= $1 AND t.created_at < $2
+		GROUP BY p.id, p.name
+		ORDER BY qty DESC
+		LIMIT 1
+	`, startOfDay, endOfDay).Scan(&nama, &qtyTerjual)
+	if err == nil {
+		report.ProdukTerlaris = &models.TopProduct{
+			Nama:       nama,
+			QtyTerjual: qtyTerjual,
+		}
+	}
+
+	return report, nil
+}
