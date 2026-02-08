@@ -131,3 +131,43 @@ func (repo *TransactionRepository) GetDailyReport() (*models.DailyReport, error)
 
 	return report, nil
 }
+
+func (repo *TransactionRepository) GetReportByDateRange(startDate, endDate time.Time) (*models.DailyReport, error) {
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
+	var totalRevenue, totalTransaksi int
+	err := repo.db.QueryRow(`
+		SELECT COALESCE(SUM(total_amount), 0), COUNT(*) 
+		FROM transactions 
+		WHERE created_at >= $1 AND created_at <= $2
+	`, startDate, endDate).Scan(&totalRevenue, &totalTransaksi)
+	if err != nil {
+		return nil, err
+	}
+
+	report := &models.DailyReport{
+		TotalRevenue:   totalRevenue,
+		TotalTransaksi: totalTransaksi,
+	}
+
+	var nama string
+	var qtyTerjual int
+	err = repo.db.QueryRow(`
+		SELECT p.name, SUM(td.quantity) as qty
+		FROM transaction_details td
+		JOIN transactions t ON td.transaction_id = t.id
+		JOIN products p ON td.product_id = p.id
+		WHERE t.created_at >= $1 AND t.created_at <= $2
+		GROUP BY p.id, p.name
+		ORDER BY qty DESC
+		LIMIT 1
+	`, startDate, endDate).Scan(&nama, &qtyTerjual)
+	if err == nil {
+		report.ProdukTerlaris = &models.TopProduct{
+			Nama:       nama,
+			QtyTerjual: qtyTerjual,
+		}
+	}
+
+	return report, nil
+}

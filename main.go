@@ -87,6 +87,7 @@ func main() {
 
 	http.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
 	http.HandleFunc("/api/report/hari-ini", transactionHandler.GetDailyReport)
+	http.HandleFunc("/api/report", transactionHandler.GetReport)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request){
 		w.Header().Set("Content-Type", "application/json")
